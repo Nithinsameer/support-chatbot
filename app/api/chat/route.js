@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
+import OpenAI from 'openai'
 import { streamText, generateText } from 'ai';
 import { createOpenAI as createGroq } from '@ai-sdk/openai';
+import { createStreamableValue } from 'ai/rsc';
 
 const systemprompt = `
 Welcome to Headstarter's Customer Support AI! As a virtual assistant, your role is to help users navigate and make the most of Headstarter, an innovative interview practice platform where users can conduct real-time technical interviews with AI. Here's how you should assist our users:
@@ -35,18 +37,73 @@ Provide answers to frequently asked questions regarding subscription plans, bill
 Direct users to additional resources or live support when necessary.
 Remember to maintain a friendly, supportive, and professional tone while interacting with users. Your goal is to ensure they have a seamless and productive experience with Headstarter.
 `
-
 export async function POST(req){
-    const data = await req.json()
-    const groq = createGroq({
-        baseURL: 'https://api.groq.com/openai/v1',
+    const openai = new OpenAI({
+        baseURL: "https://api.groq.com/openai/v1",
         apiKey: process.env.GROQ_API_KEY,
-      });
-      
-      const { text } = await generateText({
-        model: groq('llama-3.1-8b-instant'),
-        messages: [{role: "system", content: systemprompt }, ...data]
-      });
-    console.log(text)
-    return NextResponse.json({message: text},{status: 200},)
+      })
+
+    const data = await req.json()
+    const completion = await openai.chat.completions.create({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          { role: "user", content: systemprompt}, ...data
+        ],
+        stream: true,
+      })
+    
+    const stream = new ReadableStream({
+        async start(controller) {
+            const encoder = new TextEncoder()
+            try{
+                for await (const chunk of completion) {
+                    const content = chunk.choices[0]?.delta?.content
+                    if (content) {
+                        const text = encoder.encode(content)
+                        controller.enqueue(text)
+                    }
+                }
+            } catch (err){
+                controller.error(err)
+            } finally {
+                controller.close()
+            }
+        },
+    })
+    
+    return new NextResponse(stream)
+
 }
+// export async function POST(req){
+//     const data = await req.json()
+//     const groq = createGroq({
+//         baseURL: 'https://api.groq.com/openai/v1',
+//         apiKey: process.env.GROQ_API_KEY,
+//       });
+      
+//       const {text} = await generateText({
+//         model: groq('llama-3.1-8b-instant'),
+//         messages: [{role: "system", content: systemprompt }, ...data]
+//       });
+//     // console.log(text)
+//     return NextResponse.json({message: text},{status: 200},)
+//     // return stream.toDataStreamResponse();
+// }
+
+// export async function main(){
+//     const groq = createGroq({
+//         baseURL: 'https://api.groq.com/openai/v1',
+//         apiKey: process.env.GROQ_API_KEY,
+//       });
+
+//     const result = await streamText({
+//         model: groq('llama-3.1-8b-instant'),
+//         prompt: "Tell me a very long science fact",
+//     })
+
+//     for await (const textPart of result.textStream){
+//         process.stdout.write(textPart);
+//     }
+// }
+
+// main().catch(console.error)

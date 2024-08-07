@@ -4,6 +4,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import ReactMarkdown from 'react-markdown'
 
 export function Chatbot() {
   const [messages, setMessages] = useState([
@@ -12,11 +13,11 @@ export function Chatbot() {
   const [input, setInput] = useState("")
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (input.trim()) {
-      const userMessage = {role: "user", content: input.trim()}
-      setMessages(prev => [...prev, userMessage])
-      setInput("")
+      const userMessage = { role: "user", content: input.trim() };
+      setMessages((prev) => [...prev, userMessage, { role: 'assistant', content: '' }]);
+      setInput("");
 
       try {
         const response = await fetch('/api/chat', {
@@ -25,20 +26,41 @@ export function Chatbot() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify([...messages, userMessage]),
-        })
+        });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch response from the server')
+          throw new Error('Failed to fetch response from the server');
         }
 
-        const data = await response.json()
-        setMessages(prev => [...prev, {role: "assistant", content: data.message}])
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let result = '';
+
+        reader.read().then(function processText({ done, value }) {
+          if (done) {
+            return;
+          }
+          const text = decoder.decode(value || new Uint8Array(), { stream: true });
+          setMessages((messages) => {
+            let lastMessage = messages[messages.length - 1];
+            let otherMessages = messages.slice(0, messages.length - 1);
+
+            return [
+              ...otherMessages,
+              { ...lastMessage, content: lastMessage.content + text }
+            ];
+          });
+          return reader.read().then(processText);
+        });
       } catch (error) {
-        console.error('Error:', error)
-        setMessages(prev => [...prev, {role: "assistant", content: "I'm sorry, I encountered an error. Please try again later."}])
+        console.error('Error:', error);
+        setMessages((prev) => [
+          ...prev.slice(0, prev.length - 1), // Remove the empty assistant message
+          { role: "assistant", content: "I'm sorry, I encountered an error. Please try again later." }
+        ]);
       }
     }
-  }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
@@ -61,7 +83,11 @@ export function Chatbot() {
               <div key={index} className={`flex w-max max-w-[75%] flex-col gap-2 rounded-lg px-3 py-2 text-sm ${
                 message.role === "assistant" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"
               }`}>
-                {message.content}
+                {message.role === "assistant" ? (
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                ) : (
+                  message.content
+                )}
               </div>
             ))}
           </div>
