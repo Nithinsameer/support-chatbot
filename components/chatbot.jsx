@@ -1,3 +1,4 @@
+// components/chatbot.jsx
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -8,19 +9,39 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from "../app/context/AuthContext"
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
-const initialMessages = {
-  en: "Hi, I am the Headstarter support assistant. How can I help you?",
-  fr: "Bonjour, je suis l'assistant de support Headstarter. Comment puis-je vous aider ?",
-  de: "Hallo, ich bin der Headstarter-Support-Assistent. Wie kann ich Ihnen helfen?"
+// const initialMessages = {
+//   en: "Hi, I am the Headstarter support assistant. How can I help you?",
+//   fr: "Bonjour, je suis l'assistant de support Headstarter. Comment puis-je vous aider ?",
+//   de: "Hallo, ich bin der Headstarter-Support-Assistent. Wie kann ich Ihnen helfen?"
+// }
+
+const getInitialMessage = (lang, userName) => {
+  const messages = {
+    en: `Hi ${userName}, I am the Headstarter support assistant. How can I help you?`,
+    fr: `Bonjour ${userName}, je suis l'assistant de support Headstarter. Comment puis-je vous aider ?`,
+    de: `Hallo ${userName}, ich bin der Headstarter-Support-Assistent. Wie kann ich Ihnen helfen?`
+  }
+  return messages[lang] || messages.en
 }
 
 export function Chatbot() {
   const chatContentRef = useRef(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [lang, setLang] = useState('en'); // Default to English
+  const { user, logOut, lang, updateUserLanguage } = useAuth()
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState("")
+
+  useEffect(() => {
+    if (user) {
+      const userName = user.displayName || 'there' // Fallback to 'there' if displayName is not available
+      const initialMessage = getInitialMessage(lang, userName)
+      setMessages([{ role: "assistant", content: initialMessage }]);
+    }
+  }, [lang, user]);
+
 
   const handleClearChat = () => {
     if (typeof window !== 'undefined') {
@@ -28,34 +49,23 @@ export function Chatbot() {
     }
   }
 
-  const {user, googleSignIn, logOut} = useAuth()
-
   const handleSignOut = async () => {
     try {
         await logOut()
         router.push('/')
-    }catch (error) {
+    } catch (error) {
         console.log(error)
     }
-}
+  }
 
-  // const [messages, setMessages] = useState([
-  //   {role: "assistant", content: initialMessages[lang] || initialMessages.en}
-  // ])
-  // const [input, setInput] = useState("")
-
-  const [messages, setMessages] = useState([])
-  const [input, setInput] = useState("")
-
-  useEffect(() => {
-    const langParam = searchParams.get('lang');
-    if (langParam && initialMessages[langParam]) {
-      setLang(langParam);
-      setMessages([{ role: "assistant", content: initialMessages[langParam] }]);
-    } else {
-      setMessages([{ role: "assistant", content: initialMessages.en }]);
+  const handleLanguageChange = async (newLang) => {
+    if (user) {
+      await updateUserLanguage(user.uid, newLang);
+      const userName = user.displayName || 'there'
+      const newInitialMessage = getInitialMessage(newLang, userName)
+      setMessages([{ role: "assistant", content: newInitialMessage }]);
     }
-  }, [searchParams]);
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -106,8 +116,6 @@ export function Chatbot() {
     }
   };
 
-
-
   useEffect(() => {
     if (chatContentRef.current) {
       chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
@@ -116,17 +124,9 @@ export function Chatbot() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
-            <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
           <TooltipProvider>
-            {/* <Link
-              href="#"
-              className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-              prefetch={false}
-            >
-              <MountainIcon className="h-4 w-4 transition-all group-hover:scale-110" />
-              <span className="sr-only">Acme Inc</span>
-            </Link> */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
@@ -148,44 +148,28 @@ export function Chatbot() {
               </TooltipTrigger>
               <TooltipContent side="right">Profile</TooltipContent>
             </Tooltip>
-            {/* <Tooltip>
+            <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  onClick={handleClearChat}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                  <span className="sr-only">Clear Chat</span>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Link 
+                    href="#" 
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                    prefetch={false}
+                    >
+                      <LanguageIcon className="h-5 w-5" />
+                      <span className="sr-only">Change Language</span>
+                    </Link>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleLanguageChange("en")}>English</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleLanguageChange("fr")}>French</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleLanguageChange("de")}>German</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TooltipTrigger>
-              <TooltipContent side="right">Clear Chat</TooltipContent>
-            </Tooltip> */}
-            {/* <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  href="#"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-                  prefetch={false}
-                >
-                  <InboxIcon className="h-5 w-5" />
-                  <span className="sr-only">Chat History</span>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">Chat History</TooltipContent>
-            </Tooltip> */}
-            {/* <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  href="#"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-                  prefetch={false}
-                >
-                  <SettingsIcon className="h-5 w-5" />
-                  <span className="sr-only">Settings</span>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">Settings</TooltipContent>
-            </Tooltip> */}
+              <TooltipContent side="right">Change Language</TooltipContent>
+            </Tooltip>
           </TooltipProvider>
         </nav>
         <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
@@ -193,10 +177,9 @@ export function Chatbot() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
-                  href="#"
-                  onClick= {handleSignOut}
+                  href='#'
+                  onClick={handleSignOut}
                   className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-                  prefetch={false}
                 >
                   <LogOutIcon className="h-5 w-5" />
                   <span className="sr-only">Logout</span>
@@ -208,8 +191,8 @@ export function Chatbot() {
         </nav>
       </aside>
       <Card className="w-full max-w-md h-[700px] flex flex-col">
-      <CardHeader className="flex flex-row items-center">
-        <div className="flex items-center space-x-4">
+        <CardHeader className="flex flex-row items-center">
+          <div className="flex items-center space-x-4">
             <Avatar>
               <AvatarImage src="/placeholder-user.jpg" alt="AI Assistant" />
               <AvatarFallback>AI</AvatarFallback>
@@ -220,11 +203,11 @@ export function Chatbot() {
             </div>
           </div>
           <div className="flex items-center gap-2 ml-auto">
-                <Button size="icon" variant="outline" className="rounded-full" onClick={handleClearChat}>
-                  <TrashIcon className="w-4 h-4" />
-                  <span className="sr-only">Clear chat</span>
-                </Button>
-              </div>
+            <Button size="icon" variant="outline" className="rounded-full" onClick={handleClearChat}>
+              <TrashIcon className="w-4 h-4" />
+              <span className="sr-only">Clear chat</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent ref={chatContentRef} className="flex-grow overflow-y-auto">
           <div className="space-y-4">
@@ -262,7 +245,7 @@ export function Chatbot() {
   )
 }
 
-function InboxIcon(props) {
+function LanguageIcon(props) {
   return (
     <svg
       {...props}
@@ -276,12 +259,15 @@ function InboxIcon(props) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
-      <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+      <path d="m5 8 6 6" />
+      <path d="m4 14 6-6 2-3" />
+      <path d="M2 5h12" />
+      <path d="M7 2h1" />
+      <path d="m22 22-5-10-5 10" />
+      <path d="M14 18h6" />
     </svg>
   )
 }
-
 
 function LogOutIcon(props) {
   return (
@@ -304,8 +290,7 @@ function LogOutIcon(props) {
   )
 }
 
-
-function MountainIcon(props) {
+function UserIcon(props) {
   return (
     <svg
       {...props}
@@ -319,32 +304,11 @@ function MountainIcon(props) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   )
 }
-
-
-function PlusIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  )
-}
-
 
 function SendIcon(props) {
   return (
@@ -362,48 +326,6 @@ function SendIcon(props) {
     >
       <path d="m22 2-7 20-4-9-9-4Z" />
       <path d="M22 2 11 13" />
-    </svg>
-  )
-}
-
-
-function SettingsIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  )
-}
-
-
-function UserIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
     </svg>
   )
 }
