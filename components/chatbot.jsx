@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
@@ -11,7 +11,14 @@ import { useAuth } from "../app/context/AuthContext"
 import { useRouter } from 'next/navigation'
 
 export function Chatbot() {
+  const chatContentRef = useRef(null);
   const router = useRouter();
+
+  const handleClearChat = () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  }
 
   const {user, googleSignIn, logOut} = useAuth()
 
@@ -78,6 +85,11 @@ export function Chatbot() {
       }
     }
   };
+  useEffect(() => {
+    if (chatContentRef.current) {
+      chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
@@ -99,21 +111,33 @@ export function Chatbot() {
                   className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-10 md:w-10"
                   prefetch={false}
                 >
-                  {user.photoURL ? (
+                  {user && user.photoURL ? (
                     <img
                       src={user.photoURL}
                       alt="Profile"
-                      className="h-10 w-10 rounded-full" // Increased size
+                      className="h-10 w-10 rounded-full"
                     />
                   ) : (
-                    <UserIcon className="h-10 w-10" /> // Increased size for fallback icon
+                    <UserIcon className="h-10 w-10" />
                   )}
                   <span className="sr-only">Profile</span>
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">Profile</TooltipContent>
             </Tooltip>
-            <Tooltip>
+            {/* <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleClearChat}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                  <span className="sr-only">Clear Chat</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Clear Chat</TooltipContent>
+            </Tooltip> */}
+            {/* <Tooltip>
               <TooltipTrigger asChild>
                 <Link
                   href="#"
@@ -125,7 +149,7 @@ export function Chatbot() {
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">Chat History</TooltipContent>
-            </Tooltip>
+            </Tooltip> */}
             {/* <Tooltip>
               <TooltipTrigger asChild>
                 <Link
@@ -160,9 +184,9 @@ export function Chatbot() {
           </TooltipProvider>
         </nav>
       </aside>
-      <Card className="w-full max-w-md h-[600px] flex flex-col">
-        <CardHeader className="flex-shrink-0">
-          <div className="flex items-center space-x-4">
+      <Card className="w-full max-w-md h-[700px] flex flex-col">
+      <CardHeader className="flex flex-row items-center">
+        <div className="flex items-center space-x-4">
             <Avatar>
               <AvatarImage src="/placeholder-user.jpg" alt="AI Assistant" />
               <AvatarFallback>AI</AvatarFallback>
@@ -172,8 +196,14 @@ export function Chatbot() {
               <p className="text-sm text-muted-foreground">Headstarter Support</p>
             </div>
           </div>
+          <div className="flex items-center gap-2 ml-auto">
+                <Button size="icon" variant="outline" className="rounded-full" onClick={handleClearChat}>
+                  <TrashIcon className="w-4 h-4" />
+                  <span className="sr-only">Clear chat</span>
+                </Button>
+              </div>
         </CardHeader>
-        <CardContent className="flex-grow overflow-y-auto">
+        <CardContent ref={chatContentRef} className="flex-grow overflow-y-auto">
           <div className="space-y-4">
             {messages.map((message, index) => (
               <div key={index} className={`flex w-max max-w-[75%] flex-col gap-2 rounded-lg px-3 py-2 text-sm ${
@@ -351,6 +381,27 @@ function UserIcon(props) {
     >
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
+    </svg>
+  )
+}
+
+function TrashIcon(props) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
     </svg>
   )
 }

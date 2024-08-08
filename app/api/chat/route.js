@@ -45,12 +45,13 @@ export async function POST(req){
 
     const data = await req.json()
     const completion = await openai.chat.completions.create({
-        model: "llama-3.1-8b-instant",
+        model: "mixtral-8x7b-32768",
         messages: [
           { role: "user", content: systemprompt}, ...data
         ],
         stream: true,
       })
+    
     
     const stream = new ReadableStream({
         async start(controller) {
@@ -71,6 +72,7 @@ export async function POST(req){
         },
     })
     
+    // console.log(stream)
     return new NextResponse(stream)
 
 }
