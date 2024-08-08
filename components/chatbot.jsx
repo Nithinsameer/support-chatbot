@@ -1,12 +1,29 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import Link from "next/link"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import ReactMarkdown from 'react-markdown'
+import { useAuth } from "../app/context/AuthContext"
+import { useRouter } from 'next/navigation'
 
 export function Chatbot() {
+  const router = useRouter();
+
+  const {user, googleSignIn, logOut} = useAuth()
+
+  const handleSignOut = async () => {
+    try {
+        await logOut()
+        router.push('/')
+    }catch (error) {
+        console.log(error)
+    }
+}
+
   const [messages, setMessages] = useState([
     {role: "assistant", content: "Hi I am the Headstarter support assistant, how can I help you?"}
   ])
@@ -64,6 +81,85 @@ export function Chatbot() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
+            <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
+        <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
+          <TooltipProvider>
+            {/* <Link
+              href="#"
+              className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
+              prefetch={false}
+            >
+              <MountainIcon className="h-4 w-4 transition-all group-hover:scale-110" />
+              <span className="sr-only">Acme Inc</span>
+            </Link> */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-10 md:w-10"
+                  prefetch={false}
+                >
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt="Profile"
+                      className="h-10 w-10 rounded-full" // Increased size
+                    />
+                  ) : (
+                    <UserIcon className="h-10 w-10" /> // Increased size for fallback icon
+                  )}
+                  <span className="sr-only">Profile</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Profile</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                  prefetch={false}
+                >
+                  <InboxIcon className="h-5 w-5" />
+                  <span className="sr-only">Chat History</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Chat History</TooltipContent>
+            </Tooltip>
+            {/* <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                  prefetch={false}
+                >
+                  <SettingsIcon className="h-5 w-5" />
+                  <span className="sr-only">Settings</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Settings</TooltipContent>
+            </Tooltip> */}
+          </TooltipProvider>
+        </nav>
+        <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  onClick= {handleSignOut}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                  prefetch={false}
+                >
+                  <LogOutIcon className="h-5 w-5" />
+                  <span className="sr-only">Logout</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Logout</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </nav>
+      </aside>
       <Card className="w-full max-w-md h-[600px] flex flex-col">
         <CardHeader className="flex-shrink-0">
           <div className="flex items-center space-x-4">
