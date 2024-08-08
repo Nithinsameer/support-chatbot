@@ -1,80 +1,88 @@
 import { NextResponse } from "next/server"
 import OpenAI from 'openai'
-import { streamText, generateText } from 'ai';
-import { createOpenAI as createGroq } from '@ai-sdk/openai';
-import { createStreamableValue } from 'ai/rsc';
 
-const systemprompt = `
+const baseSystemPrompt = `
 Welcome to Headstarter's Customer Support AI! As a virtual assistant, your role is to help users navigate and make the most of Headstarter, an innovative interview practice platform where users can conduct real-time technical interviews with AI. Here's how you should assist our users:
 
 Introduction to Headstarter:
-
 Briefly explain Headstarter's purpose and features, emphasizing the real-time AI interview practice for technical skills.
 Highlight how users can benefit from practicing with our AI to improve their technical interview performance.
-Account Assistance:
 
+Account Assistance:
 Guide users through the process of creating, managing, and troubleshooting their accounts.
 Assist with login issues, password resets, and updating user profiles.
-Platform Navigation:
 
+Platform Navigation:
 Help users understand how to navigate the platform, including accessing different interview modules and features.
 Explain how to schedule or start an AI interview session and what to expect during the process.
-Interview Preparation:
 
+Interview Preparation:
 Provide tips and resources available on the platform to help users prepare for their AI interviews.
 Suggest practice sessions based on the user's goals, such as data structures, algorithms, or specific programming languages.
-Technical Support:
 
+Technical Support:
 Troubleshoot common technical issues, such as connectivity problems, audio/video issues, and interface glitches.
 Guide users on how to report bugs or request further technical assistance from our support team.
-Feedback and Improvement:
 
+Feedback and Improvement:
 Encourage users to provide feedback on their experience and suggest ways to improve the platform.
 Inform users about how their feedback contributes to enhancing the Headstarter experience.
-FAQs and Additional Help:
 
+FAQs and Additional Help:
 Provide answers to frequently asked questions regarding subscription plans, billing, and platform features.
 Direct users to additional resources or live support when necessary.
+
 Remember to maintain a friendly, supportive, and professional tone while interacting with users. Your goal is to ensure they have a seamless and productive experience with Headstarter.
 `
-export async function POST(req){
-    const openai = new OpenAI({
-        baseURL: "https://api.groq.com/openai/v1",
-        apiKey: process.env.GROQ_API_KEY,
-      })
 
-    const data = await req.json()
-    const completion = await openai.chat.completions.create({
-        model: "mixtral-8x7b-32768",
-        messages: [
-          { role: "user", content: systemprompt}, ...data
-        ],
-        stream: true,
-      })
-    
-    
-    const stream = new ReadableStream({
-        async start(controller) {
-            const encoder = new TextEncoder()
-            try{
-                for await (const chunk of completion) {
-                    const content = chunk.choices[0]?.delta?.content
-                    if (content) {
-                        const text = encoder.encode(content)
-                        controller.enqueue(text)
-                    }
-                }
-            } catch (err){
-                controller.error(err)
-            } finally {
-                controller.close()
-            }
-        },
-    })
-    
-    // console.log(stream)
-    return new NextResponse(stream)
+const languageInstructions = {
+  en: "Please respond in English.",
+  fr: "Veuillez répondre en français.",
+  de: "Bitte antworten Sie auf Deutsch. Unabhängig von der Sprache, in der der Benutzer antwortet, antworten Sie NUR auf Deutsch"
+}
 
+export async function POST(req) {
+  const openai = new OpenAI({
+    baseURL: "https://api.groq.com/openai/v1",
+    apiKey: process.env.GROQ_API_KEY,
+  })
+
+  const { messages, language } = await req.json()
+//   console.log("Received language:", language); // Debug log
+
+  const systemPrompt = `${baseSystemPrompt}\n\n${languageInstructions[language] || languageInstructions.en}`
+//   console.log("System prompt:", systemPrompt); // Debug log
+
+  const completion = await openai.chat.completions.create({
+    model: "mixtral-8x7b-32768",
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages
+    ],
+    stream: true,
+  })
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder()
+      try {
+        for await (const chunk of completion) {
+          const content = chunk.choices[0]?.delta?.content
+          if (content) {
+            const text = encoder.encode(content)
+            controller.enqueue(text)
+          }
+        }
+      } catch (err) {
+        console.error("Stream error:", err); // Debug log
+        controller.error(err)
+      } finally {
+        controller.close()
+      }
+    },
+  })
+
+  return new NextResponse(stream)
 }
 // export async function POST(req){
 //     const data = await req.json()

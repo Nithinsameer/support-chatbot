@@ -8,11 +8,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from "../app/context/AuthContext"
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+
+const initialMessages = {
+  en: "Hi, I am the Headstarter support assistant. How can I help you?",
+  fr: "Bonjour, je suis l'assistant de support Headstarter. Comment puis-je vous aider ?",
+  de: "Hallo, ich bin der Headstarter-Support-Assistent. Wie kann ich Ihnen helfen?"
+}
 
 export function Chatbot() {
   const chatContentRef = useRef(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [lang, setLang] = useState('en'); // Default to English
 
   const handleClearChat = () => {
     if (typeof window !== 'undefined') {
@@ -31,10 +39,23 @@ export function Chatbot() {
     }
 }
 
-  const [messages, setMessages] = useState([
-    {role: "assistant", content: "Hi I am the Headstarter support assistant, how can I help you?"}
-  ])
+  // const [messages, setMessages] = useState([
+  //   {role: "assistant", content: initialMessages[lang] || initialMessages.en}
+  // ])
+  // const [input, setInput] = useState("")
+
+  const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
+
+  useEffect(() => {
+    const langParam = searchParams.get('lang');
+    if (langParam && initialMessages[langParam]) {
+      setLang(langParam);
+      setMessages([{ role: "assistant", content: initialMessages[langParam] }]);
+    } else {
+      setMessages([{ role: "assistant", content: initialMessages.en }]);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +70,7 @@ export function Chatbot() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify([...messages, userMessage]),
+          body: JSON.stringify({ messages: [...messages, userMessage], language: lang }),
         });
 
         if (!response.ok) {
@@ -58,7 +79,6 @@ export function Chatbot() {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let result = '';
 
         reader.read().then(function processText({ done, value }) {
           if (done) {
@@ -79,12 +99,15 @@ export function Chatbot() {
       } catch (error) {
         console.error('Error:', error);
         setMessages((prev) => [
-          ...prev.slice(0, prev.length - 1), // Remove the empty assistant message
+          ...prev.slice(0, prev.length - 1),
           { role: "assistant", content: "I'm sorry, I encountered an error. Please try again later." }
         ]);
       }
     }
   };
+
+
+
   useEffect(() => {
     if (chatContentRef.current) {
       chatContentRef.current.scrollTop = chatContentRef.current.scrollHeight;
@@ -193,7 +216,7 @@ export function Chatbot() {
             </Avatar>
             <div>
               <p className="text-sm font-medium leading-none">AI Assistant</p>
-              <p className="text-sm text-muted-foreground">Headstarter Support</p>
+              <p className="text-sm text-muted-foreground">Headstarter Support ({lang})</p>
             </div>
           </div>
           <div className="flex items-center gap-2 ml-auto">
