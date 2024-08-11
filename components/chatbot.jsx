@@ -20,9 +20,9 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 
 const getInitialMessage = (lang, userName) => {
   const messages = {
-    en: `Hi ${userName}, I am the Headstarter support assistant. How can I help you?`,
-    fr: `Bonjour ${userName}, je suis l'assistant de support Headstarter. Comment puis-je vous aider ?`,
-    de: `Hallo ${userName}, ich bin der Headstarter-Support-Assistent. Wie kann ich Ihnen helfen?`
+    en: `Hi ${userName}, I am the Sameer Information Assistant. How can I help you?`,
+    fr: `Bonjour ${userName}, Je suis l'assistant d'information Sameer. Comment puis-je t'aider?`,
+    de: `Hallo ${userName}, Ich bin der Informationsassistent von Sameer. Wie kann ich dir helfen?`
   }
   return messages[lang] || messages.en
 }
