@@ -21,7 +21,7 @@ async function initializeVectorStore() {
   });
   const pineconeIndex = pc.index(PINECONE_INDEX_NAME);
 
-  const loader = new TextLoader("/Volumes/NithinSameer/Personal/support-chatbot/data/sameer_info.txt");
+  const loader = new TextLoader("/Volumes/NithinSameer/Personal/support-chatbot/data/nithin-profile-rag.txt");
   const rawDocs = await loader.load();
   const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
